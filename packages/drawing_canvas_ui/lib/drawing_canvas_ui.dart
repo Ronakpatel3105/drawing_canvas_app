@@ -1,5 +1,3 @@
-/// A Calculator.
-class Calculator {
-  /// Returns [value] plus 1.
-  int addOne(int value) => value + 1;
-}
+library drawing_canvas_ui;
+
+export 'src/dc_color/dc_color.dart';
