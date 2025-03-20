@@ -13,7 +13,10 @@ class DrawingCanvasView extends StatefulWidget {
 
 class _DrawingCanvasViewState extends State<DrawingCanvasView> {
   bool isSidebarOpen = false;
+  bool isPrescriptionPadEnabled = false; // Toggle for prescription pad
   final GlobalKey canvasKey = GlobalKey();
+  final GlobalKey prescriptionPadKey =
+      GlobalKey(); // Define the prescription pad key
 
   @override
   Widget build(BuildContext context) {
@@ -24,11 +27,52 @@ class _DrawingCanvasViewState extends State<DrawingCanvasView> {
       appBar: AppBar(
         actions: [
           IconButton(
+            icon: const Icon(Icons.add_photo_alternate),
+            tooltip: 'Add Existing Pad',
+            iconSize: 30,
+            onPressed: () {
+              context
+                  .read<DrawingBloc>()
+                  .add(const OnLoadImage(fromGallery: true));
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.save),
             tooltip: 'Save',
             iconSize: 30,
             onPressed: () {
-              context.read<DrawingBloc>().add(OnSaveDrawing(canvasKey));
+              context.read<DrawingBloc>().add(OnSaveScreenshot(canvasKey));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.save_alt),
+            tooltip: 'Save Screenshot',
+            iconSize: 30,
+            onPressed: () {
+              context.read<DrawingBloc>().add(OnSaveScreenshot(canvasKey));
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.medical_services),
+            tooltip: 'Prescription Pad',
+            iconSize: 30,
+            onPressed: () async {
+              setState(() {
+                isPrescriptionPadEnabled = !isPrescriptionPadEnabled;
+              });
+
+              if (isPrescriptionPadEnabled) {
+                const imagePath =
+                    'assets/images/doctor.jpg'; // Path to the prescription pad image
+                context
+                    .read<DrawingBloc>()
+                    .add(const OnLoadImage(fromGallery: false));
+                context
+                    .read<DrawingBloc>()
+                    .add(const OnLoadPrescriptionPad(imagePath));
+              } else {
+                context.read<DrawingBloc>().add(const OnClearDrawing());
+              }
             },
           ),
           IconButton(
@@ -39,12 +83,26 @@ class _DrawingCanvasViewState extends State<DrawingCanvasView> {
               context.read<DrawingBloc>().add(const OnClearDrawing());
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.edit),
-            tooltip: 'Edit',
-            iconSize: 30,
-            onPressed: () {
-              context.read<DrawingBloc>().add(const OnEnableEditing());
+          BlocBuilder<DrawingBloc, DrawingState>(
+            builder: (context, state) {
+              return IconButton(
+                icon: Icon(
+                  state.isEraserSelected
+                      ? Icons.brush
+                      : Icons.cleaning_services,
+                ),
+                tooltip: state.isEraserSelected
+                    ? 'Switch to Pen'
+                    : 'Switch to Eraser',
+                iconSize: 30,
+                onPressed: () {
+                  context.read<DrawingBloc>().add(
+                        state.isEraserSelected
+                            ? const OnSelectPen() // Switch to pen
+                            : const OnSelectEraser(), // Switch to eraser
+                      );
+                },
+              );
             },
           ),
         ],
@@ -66,7 +124,7 @@ class _DrawingCanvasViewState extends State<DrawingCanvasView> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.errorMessage!)),
             );
-          } else if (state.savedImagePath != null) {
+          } else if (state.savedDocumentPath != null) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Image saved successfully!')),
             );
@@ -80,12 +138,7 @@ class _DrawingCanvasViewState extends State<DrawingCanvasView> {
                 child: RepaintBoundary(
                   key: canvasKey,
                   child: Container(
-                    margin: const EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      top: 30,
-                      bottom: 30,
-                    ),
+                    margin: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -120,7 +173,7 @@ class _DrawingCanvasViewState extends State<DrawingCanvasView> {
                             return CustomPaint(
                               painter: DrawingCanvas(
                                 drawingPoints: state.drawingPoints,
-                                backgroundImage: state.backgroundImage,
+                                editableImage: state.editableImage,
                               ),
                             );
                           },
@@ -130,6 +183,57 @@ class _DrawingCanvasViewState extends State<DrawingCanvasView> {
                   ),
                 ),
               ),
+
+              if (isPrescriptionPadEnabled)
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    key: prescriptionPadKey, // Use the new key here
+                    child: Stack(
+                      children: [
+                        // Prescription Pad Background
+                        Opacity(
+                          opacity: 0.5,
+                          child: Image.asset(
+                            'assets/images/doctor.jpg',
+                            fit: BoxFit.cover,
+                            width: MediaQuery.of(context).size.width,
+                            height: MediaQuery.of(context).size.height,
+                          ),
+                        ),
+                        // Drawing Canvas on Top of the Prescription Pad
+                        GestureDetector(
+                          onPanStart: (details) {
+                            context
+                                .read<DrawingBloc>()
+                                .add(OnStartDrawing(details.localPosition));
+                          },
+                          onPanUpdate: (details) {
+                            context
+                                .read<DrawingBloc>()
+                                .add(OnDrawing(details.localPosition));
+                          },
+                          onPanEnd: (details) {
+                            context
+                                .read<DrawingBloc>()
+                                .add(const OnStopDrawing());
+                          },
+                          child: BlocBuilder<DrawingBloc, DrawingState>(
+                            builder: (context, state) {
+                              return CustomPaint(
+                                painter: DrawingCanvas(
+                                  drawingPoints: state.drawingPoints,
+                                  editableImage: state.editableImage,
+                                ),
+                                child:
+                                    Container(), // Ensures the canvas is interactive
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
               // Collapsible Sidebar
               AnimatedPositioned(
@@ -161,89 +265,17 @@ class _DrawingCanvasViewState extends State<DrawingCanvasView> {
   Widget _buildSidebarContent(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(
-        'Tools',
-        style:
-            theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-      ),
-      const SizedBox(height: 16),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          ToolButton(
-            icon: Icons.edit_outlined,
-            label: 'Pen',
-            isSelected: context.watch<DrawingBloc>().state.isPenSelected,
-            onTap: () => context.read<DrawingBloc>().add(const OnSelectPen()),
-          ),
-          ToolButton(
-            icon: Icons.auto_fix_normal,
-            label: 'Eraser',
-            isSelected: context.watch<DrawingBloc>().state.isEraserSelected,
-            onTap: () =>
-                context.read<DrawingBloc>().add(const OnSelectEraser()),
-          ),
-        ],
-      ),
-      const SizedBox(height: 32),
-      Text(
-        'Image',
-        style:
-            theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-      ),
-      const SizedBox(height: 12),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          ImageButton(
-            icon: Icons.photo_library_outlined,
-            label: 'Gallery',
-            onTap: () =>
-                context.read<DrawingBloc>().add(OnLoadImage(fromGallery: true)),
-          ),
-          ImageButton(
-            icon: Icons.folder_outlined,
-            label: 'File',
-            onTap: () =>
-                context.read<DrawingBloc>().add(OnLoadImage(fromGallery: true)),
-          ),
-        ],
-      ),
-      const SizedBox(height: 32),
-      BlocBuilder<DrawingBloc, DrawingState>(
-        builder: (context, state) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    state.isEraserSelected ? 'Eraser Size' : 'Stroke Width',
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  Text(
-                    state.strokeWidth.round().toString(),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              Slider(
-                value: state.strokeWidth,
-                min: 1,
-                max: state.isEraserSelected ? 50 : 20,
-                onChanged: (value) =>
-                    context.read<DrawingBloc>().add(OnChangePenWidth(value)),
-              ),
-            ],
-          );
-        },
-      ),
-    ]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tools',
+          style:
+              theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 16),
+        // Add more tools here if needed
+      ],
+    );
   }
 }

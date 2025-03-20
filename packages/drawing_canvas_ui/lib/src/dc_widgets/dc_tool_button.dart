@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ToolButton extends StatelessWidget {
-  const ToolButton({
+  const ToolButton({super.key, 
     required this.icon,
     required this.label,
     required this.isSelected,

@@ -1,58 +1,49 @@
 import 'dart:ui' as ui;
-import 'package:drawing_canvas_ui/src/model/drawing_point.dart';
+import 'package:drawing_canvas_ui/drawing_canvas_ui.dart';
 import 'package:flutter/material.dart';
 
-class DrawingCanvas extends CustomPainter {
+/*class DrawingCanvas extends CustomPainter {
   final List<DrawingPoint> drawingPoints;
-  final ui.Image? backgroundImage;
+  final ui.Image? editableImage;
 
   DrawingCanvas({
     required this.drawingPoints,
-    this.backgroundImage,
+    this.editableImage,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Draw background image if exists
-    if (backgroundImage != null) {
+    // Draw editable image if it exists
+    if (editableImage != null) {
       final rect = Rect.fromLTWH(0, 0, size.width, size.height);
       canvas.drawImageRect(
-        backgroundImage!,
+        editableImage!,
         Rect.fromLTWH(
           0,
           0,
-          backgroundImage!.width.toDouble(),
-          backgroundImage!.height.toDouble(),
+          editableImage!.width.toDouble(),
+          editableImage!.height.toDouble(),
         ),
         rect,
         Paint(),
       );
     }
 
+    // Draw the drawing points
     for (int i = 0; i < drawingPoints.length - 1; i++) {
       if (drawingPoints[i].offset == Offset.zero ||
           drawingPoints[i + 1].offset == Offset.zero) {
         continue;
       }
 
-      if (drawingPoints[i + 1].isStartOfLine) {
-        // Draw a point for single tap
-        canvas.drawCircle(
-          drawingPoints[i].offset,
-          drawingPoints[i].paint.strokeWidth / 2,
-          drawingPoints[i].paint,
-        );
-      } else {
-        // Draw line between points
-        canvas.drawLine(
-          drawingPoints[i].offset,
-          drawingPoints[i + 1].offset,
-          drawingPoints[i].paint,
-        );
-      }
+      canvas.drawLine(
+        drawingPoints[i].offset,
+        drawingPoints[i + 1].offset,
+        drawingPoints[i].paint,
+      );
     }
 
-    // Draw the last point if it exists and isn't a zero offset
+    // Draw the last point if it exists
     if (drawingPoints.isNotEmpty && drawingPoints.last.offset != Offset.zero) {
       canvas.drawCircle(
         drawingPoints.last.offset,
@@ -65,6 +56,122 @@ class DrawingCanvas extends CustomPainter {
   @override
   bool shouldRepaint(covariant DrawingCanvas oldDelegate) {
     return oldDelegate.drawingPoints != drawingPoints ||
-        oldDelegate.backgroundImage != backgroundImage;
+        oldDelegate.editableImage != editableImage;
+  }
+}
+*/
+/*class DrawingCanvas extends CustomPainter {
+  final List<DrawingPoint> drawingPoints;
+  final ui.Image? editableImage;
+
+  DrawingCanvas({
+    required this.drawingPoints,
+    this.editableImage,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Draw the prescription pad (editableImage) as the base layer
+    if (editableImage != null) {
+      final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+      canvas.drawImageRect(
+        editableImage!,
+        Rect.fromLTWH(
+          0,
+          0,
+          editableImage!.width.toDouble(),
+          editableImage!.height.toDouble(),
+        ),
+        rect,
+        Paint(),
+      );
+    }
+
+    // Draw the drawing points on top of the prescription pad
+    for (int i = 0; i < drawingPoints.length - 1; i++) {
+      if (drawingPoints[i].offset == Offset.zero ||
+          drawingPoints[i + 1].offset == Offset.zero) {
+        continue;
+      }
+
+      canvas.drawLine(
+        drawingPoints[i].offset,
+        drawingPoints[i + 1].offset,
+        drawingPoints[i].paint,
+      );
+    }
+
+    // Draw the last point if it exists
+    if (drawingPoints.isNotEmpty && drawingPoints.last.offset != Offset.zero) {
+      canvas.drawCircle(
+        drawingPoints.last.offset,
+        drawingPoints.last.paint.strokeWidth / 2,
+        drawingPoints.last.paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant DrawingCanvas oldDelegate) {
+    return oldDelegate.drawingPoints != drawingPoints ||
+        oldDelegate.editableImage != editableImage;
+  }
+}*/
+
+class DrawingCanvas extends CustomPainter {
+  final List<DrawingPoint> drawingPoints;
+  final ui.Image? editableImage;
+
+  DrawingCanvas({
+    required this.drawingPoints,
+    this.editableImage,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Draw the prescription pad (editableImage) as the base layer
+    if (editableImage != null) {
+      final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+      canvas.drawImageRect(
+        editableImage!,
+        Rect.fromLTWH(
+          0,
+          0,
+          editableImage!.width.toDouble(),
+          editableImage!.height.toDouble(),
+        ),
+        rect,
+        Paint(),
+      );
+    }
+
+    // Draw the drawing points on top of the prescription pad
+    for (int i = 0; i < drawingPoints.length - 1; i++) {
+      if (drawingPoints[i].offset == Offset.zero ||
+          drawingPoints[i + 1].offset == Offset.zero) {
+        continue;
+      }
+
+      canvas.drawLine(
+        drawingPoints[i].offset,
+        drawingPoints[i + 1].offset,
+        drawingPoints[i].paint,
+      );
+    }
+
+    // Draw the last point if it exists
+    if (drawingPoints.isNotEmpty && drawingPoints.last.offset != Offset.zero) {
+      canvas.drawCircle(
+        drawingPoints.last.offset,
+        drawingPoints.last.paint.strokeWidth / 2,
+        drawingPoints.last.paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant DrawingCanvas oldDelegate) {
+    return oldDelegate.drawingPoints != drawingPoints ||
+        oldDelegate.editableImage != editableImage;
   }
 }

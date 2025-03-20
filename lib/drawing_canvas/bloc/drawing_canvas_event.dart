@@ -63,6 +63,14 @@ class OnSaveDrawing extends DrawingEvent {
   List<Object?> get props => [canvasKey];
 }
 
+class OnSaveScreenshot extends DrawingEvent {
+  const OnSaveScreenshot(this.canvasKey);
+  final GlobalKey canvasKey;
+
+  @override
+  List<Object?> get props => [canvasKey];
+}
+
 class OnEnableEditing extends DrawingEvent {
   const OnEnableEditing();
 }
@@ -77,4 +85,12 @@ class OnFetchDocument extends DrawingEvent {
 
   @override
   List<Object?> get props => [documentPath];
+}
+
+class OnLoadPrescriptionPad extends DrawingEvent {
+  const OnLoadPrescriptionPad(this.imagePath);
+  final String imagePath;
+
+  @override
+  List<Object?> get props => [imagePath];
 }
