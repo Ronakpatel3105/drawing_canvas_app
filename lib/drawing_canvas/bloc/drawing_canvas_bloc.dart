@@ -1,15 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:bloc/bloc.dart';
 import 'package:drawing_canvas_ui/drawing_canvas_ui.dart';
 import 'package:equatable/equatable.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -39,7 +38,7 @@ class DrawingBloc extends Bloc<DrawingEvent, DrawingState> {
 
   Paint _getCurrentPaint() {
     return Paint()
-      ..color = state.isPenSelected ? Colors.black : Colors.white
+      ..color = state.isEraserSelected ? Colors.white : Colors.black
       ..strokeWidth = state.strokeWidth
       ..strokeCap = StrokeCap.round;
   }
@@ -162,7 +161,7 @@ class DrawingBloc extends Bloc<DrawingEvent, DrawingState> {
   }
 
   // For kIsWeb
-  Future<void> _onSaveScreenshot(
+  /*Future<void> _onSaveScreenshot(
       OnSaveScreenshot event, Emitter<DrawingState> emit) async {
     final canvasKey = event.canvasKey;
     try {
@@ -230,8 +229,9 @@ class DrawingBloc extends Bloc<DrawingEvent, DrawingState> {
         errorMessage: 'Error saving prescription: $e',
       ));
     }
-  }
-  /* Future<void> _onSaveScreenshot(
+  }*/
+
+  /*Future<void> _onSaveScreenshot(
       OnSaveScreenshot event, Emitter<DrawingState> emit) async {
     final canvasKey = event.canvasKey;
     try {
@@ -271,8 +271,8 @@ class DrawingBloc extends Bloc<DrawingEvent, DrawingState> {
     } catch (e) {
       print('Error saving screenshot: $e');
     }
-  }
-*/
+  }*/
+
   /* Future<void> _onLoadPrescriptionPad(
       OnLoadPrescriptionPad event, Emitter<DrawingState> emit) async {
     try {
@@ -290,7 +290,7 @@ class DrawingBloc extends Bloc<DrawingEvent, DrawingState> {
         final image = frame.image;
 
         emit(state.copyWith(
-          editableImage: image,
+          editableImage: image as ui.Image,
           isLoading: false,
         ));
       } else {
@@ -319,34 +319,6 @@ class DrawingBloc extends Bloc<DrawingEvent, DrawingState> {
     }
   }*/
 
-  /*Future<void> _onLoadPrescriptionPad(
-      OnLoadPrescriptionPad event, Emitter<DrawingState> emit) async {
-    try {
-      emit(state.copyWith(isLoading: true));
-
-      final file = File(event.imagePath);
-
-      if (!await file.exists()) {
-        throw Exception('File not found: ${event.imagePath}');
-      }
-
-      final bytes = await file.readAsBytes();
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      final image = frame.image;
-
-      emit(state.copyWith(
-        editableImage: image,
-        isLoading: false,
-      ));
-    } catch (e) {
-      emit(state.copyWith(
-        isLoading: false,
-        errorMessage: 'Failed to load prescription pad: $e',
-      ));
-    }
-  }
-*/
   Future<void> _onFetchDocument(
       OnFetchDocument event, Emitter<DrawingState> emit) async {
     try {
@@ -396,27 +368,30 @@ class DrawingBloc extends Bloc<DrawingEvent, DrawingState> {
     return await file.readAsBytes();
   }
 
-  Future<void> _onLoadPrescriptionPad(
-      OnLoadPrescriptionPad event, Emitter<DrawingState> emit) async {
-    try {
-      emit(state.copyWith(isLoading: true));
+  /*Future<void> _onLoadPrescriptionPad(
+    OnLoadPrescriptionPad event, Emitter<DrawingState> emit) async {
+  try {
+    emit(state.copyWith(isLoading: true));
 
-      final bytes = await fetchImageBytes(event.imagePath);
-      final codec = await ui.instantiateImageCodec(bytes);
-      final frame = await codec.getNextFrame();
-      final image = frame.image;
+    final bytes = await fetchImageBytes(event.imagePath);
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
 
-      emit(state.copyWith(
-        editableImage: image,
-        isLoading: false,
-      ));
-    } catch (e) {
-      emit(state.copyWith(
-        isLoading: false,
-        errorMessage: 'Failed to load prescription pad: $e',
-      ));
-    }
+    // Store the prescription pad as an editable image
+    emit(state.copyWith(
+      editableImage: image, // This will be used as the base layer
+      isLoading: false,
+      drawingPoints: [], // Reset drawing points when loading a new pad
+      errorMessage: null, // Clear previous errors if any
+    ));
+  } catch (e) {
+    emit(state.copyWith(
+      isLoading: false,
+      errorMessage: 'Failed to load prescription pad: $e',
+    ));
   }
+}*/
 
   /* Future<void> _onFetchDocument(
       OnFetchDocument event, Emitter<DrawingState> emit) async {
@@ -460,6 +435,73 @@ class DrawingBloc extends Bloc<DrawingEvent, DrawingState> {
     }
   }
 */
+
+  Future<void> _onSaveScreenshot(
+      OnSaveScreenshot event, Emitter<DrawingState> emit) async {
+    final canvasKey = event.canvasKey;
+    try {
+      final boundary = canvasKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) {
+        throw Exception('Canvas boundary not found.');
+      }
+
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      final ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        throw Exception('Failed to capture image.');
+      }
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
+
+      // Save to local storage
+      final directory = await getApplicationDocumentsDirectory();
+      final filePath =
+          '${directory.path}/screenshot_${DateTime.now().millisecondsSinceEpoch}.png';
+      final file = File(filePath);
+      await file.writeAsBytes(pngBytes);
+
+      print('Screenshot saved to $filePath');
+    } catch (e) {
+      print('Error saving screenshot: $e');
+    }
+  }
+
+  Future<void> _onLoadPrescriptionPad(
+      OnLoadPrescriptionPad event, Emitter<DrawingState> emit) async {
+    try {
+      emit(state.copyWith(isLoading: true));
+
+      Uint8List bytes;
+      if (event.imagePath.startsWith('assets/')) {
+        // Load from assets
+        final byteData = await rootBundle.load(event.imagePath);
+        bytes = byteData.buffer.asUint8List();
+      } else {
+        // Load from file system
+        final file = File(event.imagePath);
+        if (!await file.exists()) {
+          throw Exception('File not found: ${event.imagePath}');
+        }
+        bytes = await file.readAsBytes();
+      }
+
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+
+      emit(state.copyWith(
+        editableImage: image,
+        isLoading: false,
+      ));
+    } catch (e) {
+      emit(state.copyWith(
+        isLoading: false,
+        errorMessage: 'Failed to load prescription pad: $e',
+      ));
+    }
+  }
+
   void _onEnableEditing(OnEnableEditing event, Emitter<DrawingState> emit) {
     emit(state.copyWith(isEditing: !state.isEditing));
   }

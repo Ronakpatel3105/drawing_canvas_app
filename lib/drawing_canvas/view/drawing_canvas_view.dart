@@ -64,9 +64,7 @@ class _DrawingCanvasViewState extends State<DrawingCanvasView> {
               if (isPrescriptionPadEnabled) {
                 const imagePath =
                     'assets/images/doctor.jpg'; // Path to the prescription pad image
-                context
-                    .read<DrawingBloc>()
-                    .add(const OnLoadImage(fromGallery: false));
+
                 context
                     .read<DrawingBloc>()
                     .add(const OnLoadPrescriptionPad(imagePath));
